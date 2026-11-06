@@ -13,13 +13,17 @@ to consider later**. Update it whenever a decision is made or something is postp
 
 ### 🚀 Before deploying (must do)
 
-*All done 2026-11-05 except the actual first deploy. See README → "Deploying to Fly.io" and the
-decision log ("Deployment prep").*
+*All done 2026-11-05. Live at https://life-admin-josh.fly.dev. See README → "Deploying to Fly.io"
+and the decision log ("Deployment prep").*
 
-- [ ] **Do the first deploy.** Set a unique `app` name and region in `fly.toml`, follow the
-      README steps, then run `npm run smoke` against the live site. Nothing has been deployed yet.
-- [ ] Put the project in git (+ GitHub for the portfolio). It isn't a git repo yet. `.gitignore`
-      is ready: only source and config would be committed (checked 2026-11-05).
+- [x] **Do the first deploy.** *(Done 2026-11-05: https://life-admin-josh.fly.dev. If not done
+      yet, run `npm run smoke` against it; see README.)*
+- [x] Put the project in git and on GitHub. *(Done 2026-11-05: public repo
+      https://github.com/jofosuamoani/life-admin, branch `main`. Each finished change is committed
+      and pushed. Deploying stays a manual `fly deploy`.)*
+- [ ] Auto-deploy from GitHub (a GitHub Action running `fly deploy` on push to `main`, with a
+      `FLY_API_TOKEN` repo secret). Best added together with CI (typecheck, build, tests) so a
+      broken push can't go live.
 - [x] Run with `NODE_ENV=production`: Secure cookies, and the **demo account is disabled**.
       *(Done 2026-11-05: set in `fly.toml`. Checked that the demo login fails in production.)*
 - [x] Serve over **HTTPS**. *(Done 2026-11-05: Fly terminates TLS. `force_https` redirects http,
@@ -174,6 +178,7 @@ Notes to carry forward when building these:
 
 | Decision | Why / trade-off |
 |---|---|
+| **Source control** (2026-11-05): public GitHub repo `jofosuamoani/life-admin`, one branch (`main`). Every finished, tested change is committed and pushed. Deploys stay manual (`fly deploy`). | Public for the portfolio. Checked before the first push: only source and config are tracked, with no databases, `.env` files, keys or real emails. The invite list lives in a Fly secret, not the repo. Auto-deploy waits for CI (see Before deploying). |
 | Production-readiness review (2026-11-05): 4xx errors from Express/body-parser (body too large, bad charset) now return 413/415 with fixed messages instead of 500 plus a logged stack trace. `CLIENT_ORIGIN` defaults to `https://$FLY_APP_NAME.fly.dev`. `.gitignore` covers databases, backups and keys anywhere in the repo. Added `npm run smoke` (live-site test: auth, isolation, CRUD, routing, headers). | Client mistakes shouldn't look like server bugs or fill the logs. No production URL is hard-coded. The post-deploy isolation check can be repeated. SQLite on a Fly volume kept: persistent, single machine, so no database migration is needed. |
 | **Host: Fly.io**, one machine, SQLite on a 1 GB volume at `/data`. | Chosen over Railway/Render: real persistent volumes with built-in daily snapshots, automatic HTTPS, about $2–5/month. **Must stay one machine** (`fly deploy --ha=false`): a second machine gets a separate volume, so a split database. |
 | Machine stops when idle (`min_machines_running = 0`). | Cheapest. The first request after idle takes ~1–2 s to wake it. In-memory rate-limit counters reset when it stops. Acceptable for a personal app. |

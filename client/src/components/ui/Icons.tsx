@@ -174,3 +174,17 @@ export const CompassIcon = (p: IconProps) => (
     <path d="M16.24 7.76l-2.12 6.36-6.36 2.12 2.12-6.36z" />
   </Base>
 );
+
+export const LaptopIcon = (p: IconProps) => (
+  <Base {...p}>
+    <rect x="4" y="5" width="16" height="11" rx="1.5" />
+    <path d="M2 19h20" />
+  </Base>
+);
+
+export const PhoneIcon = (p: IconProps) => (
+  <Base {...p}>
+    <rect x="7" y="2.5" width="10" height="19" rx="2" />
+    <path d="M11 18h2" />
+  </Base>
+);

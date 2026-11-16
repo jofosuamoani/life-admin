@@ -1,4 +1,12 @@
-import type { LoginInput, PublicUser, SignupInput } from '@life-admin/shared';
+import type {
+  ChangePasswordInput,
+  DeleteAccountInput,
+  LoginInput,
+  PublicUser,
+  SessionInfo,
+  SignupInput,
+  UpdateProfileInput,
+} from '@life-admin/shared';
 import { ApiError, request } from './http';
 
 export const authApi = {
@@ -22,5 +30,30 @@ export const authApi = {
 
   logout(): Promise<void> {
     return request<void>('/auth/logout', { method: 'POST' });
+  },
+
+  updateProfile(input: UpdateProfileInput): Promise<PublicUser> {
+    return request<PublicUser>('/auth/me', { method: 'PATCH', body: JSON.stringify(input) });
+  },
+
+  /** Signs out all other devices; this one gets a fresh session cookie. */
+  changePassword(input: ChangePasswordInput): Promise<{ otherSessionsEnded: number }> {
+    return request('/auth/password', { method: 'PUT', body: JSON.stringify(input) });
+  },
+
+  deleteAccount(input: DeleteAccountInput): Promise<void> {
+    return request<void>('/auth/me', { method: 'DELETE', body: JSON.stringify(input) });
+  },
+
+  sessions(): Promise<SessionInfo[]> {
+    return request<SessionInfo[]>('/auth/sessions');
+  },
+
+  revokeSession(id: string): Promise<void> {
+    return request<void>(`/auth/sessions/${encodeURIComponent(id)}`, { method: 'DELETE' });
+  },
+
+  revokeOtherSessions(): Promise<{ ended: number }> {
+    return request('/auth/sessions', { method: 'DELETE' });
   },
 };

@@ -52,3 +52,19 @@ export function greetingFor(now: Date): string {
   if (h < 18) return 'Good afternoon';
   return 'Good evening';
 }
+
+/**
+ * "Active now", "5 minutes ago", "3 hours ago", "2 days ago", or a date for
+ * anything older than a month. For timestamps (ISO date-times), not due dates.
+ */
+export function formatLastActive(iso: string, now: Date = new Date()): string {
+  const minutes = Math.floor((now.getTime() - Date.parse(iso)) / 60_000);
+  // The server records activity at most every 5 minutes.
+  if (minutes < 10) return 'Active now';
+  if (minutes < 60) return `${minutes} minutes ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return hours === 1 ? '1 hour ago' : `${hours} hours ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return days === 1 ? 'Yesterday' : `${days} days ago`;
+  return new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+}

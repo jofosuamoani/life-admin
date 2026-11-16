@@ -17,6 +17,7 @@ type Field = 'email' | 'password';
 const NOTICES = {
   logout: { tone: 'success', text: 'You’ve been logged out.' },
   'session-ended': { tone: 'info', text: 'Your session has ended. Please log in again to continue.' },
+  'account-deleted': { tone: 'success', text: 'Your account and all its data have been deleted.' },
 } as const;
 
 export default function LoginPage() {

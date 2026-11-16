@@ -78,6 +78,17 @@ const migrations: { id: number; name: string; sql: string }[] = [
       CREATE INDEX idx_tasks_user_listing ON tasks (user_id, completed, due_date);
     `,
   },
+  {
+    id: 3,
+    name: 'add_session_device_and_last_used',
+    sql: `
+      -- For the "signed-in devices" list on the Account page. Only the
+      -- browser's User-Agent string is kept (no IP addresses).
+      ALTER TABLE sessions ADD COLUMN user_agent TEXT NOT NULL DEFAULT '';
+      ALTER TABLE sessions ADD COLUMN last_used_at TEXT;
+      UPDATE sessions SET last_used_at = created_at;
+    `,
+  },
 ];
 
 export function runMigrations(db: DatabaseSync): void {

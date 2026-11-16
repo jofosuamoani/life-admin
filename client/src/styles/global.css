@@ -1559,6 +1559,80 @@ select.input {
   margin-top: 2px;
 }
 
+/* Profile header: name/email take the space, Edit sits top-right. */
+.account-hero-text {
+  flex: 1;
+  min-width: 0;
+}
+.account-hero > .button {
+  align-self: flex-start;
+}
+
+/* Signed-in devices */
+.device-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.device-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-top: 1px solid var(--border);
+}
+.device-row:first-child {
+  border-top: none;
+  padding-top: 0;
+}
+.device-icon {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--text-2);
+}
+.device-body {
+  flex: 1;
+  min-width: 0;
+}
+.device-name {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-weight: 600;
+}
+.device-meta {
+  margin-top: 2px;
+  font-size: 0.83rem;
+  color: var(--text-muted);
+}
+.device-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 4px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+/* Delete account: red outline button, so it's clearly destructive but quieter
+   than the solid red confirm button in the dialog. */
+.button.danger-outline {
+  background: var(--surface);
+  border-color: color-mix(in srgb, var(--danger) 45%, transparent);
+  color: var(--danger-text);
+}
+.button.danger-outline:hover:not(:disabled) {
+  background: var(--danger-soft);
+}
+.danger-zone h2 {
+  color: var(--danger-text);
+}
+
 /* ---------- Coming soon ---------- */
 
 .coming-soon {
@@ -1746,6 +1820,9 @@ select.input {
     gap: 2px;
   }
   .session-card .button {
+    width: 100%;
+  }
+  .device-actions .button {
     width: 100%;
   }
   .auth-card {

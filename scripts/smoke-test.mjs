@@ -1,17 +1,17 @@
 #!/usr/bin/env node
 /**
  * Post-deploy smoke test. Runs against a live Life Admin site and checks
- * auth, cookies, per-user isolation, task CRUD, SPA routing and security
- * headers. It deletes the tasks it creates; the two test accounts stay
- * (there's no delete-account feature yet), so reuse them on later runs.
+ * auth, cookies, per-user isolation, task CRUD, account settings (profile,
+ * password, devices), SPA routing and security headers. At the end it
+ * deletes both test accounts, so nothing is left behind.
  *
  * Usage (no dependencies, Node 22+):
  *   SMOKE_A_EMAIL=a@example.com SMOKE_A_PASSWORD=... \
  *   SMOKE_B_EMAIL=b@example.com SMOKE_B_PASSWORD=... \
  *   node scripts/smoke-test.mjs https://your-app.fly.dev
  *
- * Both emails must be allowed to sign up (SIGNUP_ALLOWED_EMAILS) for the
- * first run; after that the script just logs in.
+ * Both emails must be allowed to sign up (SIGNUP_ALLOWED_EMAILS). If an
+ * account is left over from an interrupted run, the script logs in instead.
  */
 
 const BASE = (process.argv[2] ?? '').replace(/\/+$/, '');
@@ -158,6 +158,37 @@ const oldCookie = a.cookie;
 check('Logout', (await a.req('POST', '/api/auth/logout')).status === 204);
 const reused = await fetch(BASE + '/api/tasks', { headers: { Cookie: oldCookie } });
 check('Old session cookie rejected after logout', reused.status === 401, String(reused.status));
+
+// ---- Account settings (as B)
+const renamed = await b.req('PATCH', '/api/auth/me', { name: 'Smoke Test B (renamed)' });
+check('Change name', renamed.status === 200 && renamed.json?.name === 'Smoke Test B (renamed)', renamed.text);
+const emailNoPw = await b.req('PATCH', '/api/auth/me', { email: 'someone-else@example.com' });
+check('Changing email requires the password', emailNoPw.status === 400, String(emailNoPw.status));
+const b2 = client(); // B on a second device
+await b2.req('POST', '/api/auth/login', { email: B.email, password: B.password });
+const devices = await b.req('GET', '/api/auth/sessions');
+check(
+  'Devices list shows both of B’s sessions, one marked current',
+  Array.isArray(devices.json) && devices.json.length >= 2 && devices.json.filter((s) => s.current).length === 1,
+  devices.text,
+);
+const wrongCurrent = await b.req('PUT', '/api/auth/password', { currentPassword: 'not-my-password', newPassword: 'irrelevant-123' });
+check('Wrong current password → 400, still logged in', wrongCurrent.status === 400 && (await b.req('GET', '/api/auth/me')).status === 200, String(wrongCurrent.status));
+const newPassword = `${B.password}-changed`;
+const changed = await b.req('PUT', '/api/auth/password', { currentPassword: B.password, newPassword });
+check('Change password', changed.status === 200, changed.text);
+check('Password change logged out B’s other device', (await b2.req('GET', '/api/auth/me')).status === 401);
+check('…and kept this device logged in', (await b.req('GET', '/api/auth/me')).status === 200);
+
+// ---- Delete both test accounts (also cleans up after this run)
+const a2 = client();
+await a2.req('POST', '/api/auth/login', { email: A.email, password: A.password });
+const wrongDelete = await a2.req('DELETE', '/api/auth/me', { password: 'not-my-password' });
+check('Delete account needs the right password', wrongDelete.status === 400, String(wrongDelete.status));
+check('Delete account A', (await a2.req('DELETE', '/api/auth/me', { password: A.password })).status === 204);
+check('Delete account B', (await b.req('DELETE', '/api/auth/me', { password: newPassword })).status === 204);
+const goneA = await client().req('POST', '/api/auth/login', { email: A.email, password: A.password });
+check('Deleted account can’t log in', goneA.status === 401, String(goneA.status));
 await b.req('POST', '/api/auth/logout');
 
 console.log(failed ? `\n${failed} check(s) FAILED` : '\nAll checks passed');

@@ -105,6 +105,17 @@ NODE_ENV=production CLIENT_ORIGIN=http://localhost:4000 SIGNUP_OPEN=true \
 - **Brute force:** login allows 5 failed attempts per **IP + email** and 50 per IP every
   15 minutes (successful logins don't count). Signup allows 10 attempts per IP per hour. Login failures always say "Invalid email or password" and take the
   same time whether or not the email exists.
+- **Account settings** (Account page):
+  - Changing your name needs no password.
+  - Changing your email, changing your password, and deleting your account all need your
+    current password. Failed attempts are limited to 10 per account per 15 minutes. A wrong
+    password here returns a `400` on that field, not a `401`, so the app doesn't log you out.
+  - **Changing your password** logs out every other device and gives this one a new session
+    token.
+  - **Devices:** lists each logged-in browser (e.g. "Chrome on macOS") with when it was last
+    active. You can log out one device, or all other devices. Only the browser's User-Agent
+    string is stored, never IP addresses.
+  - **Deleting your account** removes the user, their tasks and their sessions.
 
 ## REST API
 
@@ -115,6 +126,12 @@ NODE_ENV=production CLIENT_ORIGIN=http://localhost:4000 SIGNUP_OPEN=true \
 | POST   | `/api/auth/login`   | –    | `{ email, password }` → 200 user, sets cookie |
 | POST   | `/api/auth/logout`  | –    | Revokes the session, clears the cookie → 204 |
 | GET    | `/api/auth/me`      | ✔    | Current user, or 401 |
+| PATCH  | `/api/auth/me`      | ✔    | `{ name?, email?, currentPassword? }` (password required to change the email) → user |
+| DELETE | `/api/auth/me`      | ✔    | `{ password }` → 204. Deletes the account, its tasks and sessions |
+| PUT    | `/api/auth/password`| ✔    | `{ currentPassword, newPassword }` → `{ otherSessionsEnded }`, sets a new cookie |
+| GET    | `/api/auth/sessions`| ✔    | Logged-in devices: `[{ id, device, current, createdAt, lastActiveAt }]` |
+| DELETE | `/api/auth/sessions`| ✔    | Log out all other devices → `{ ended }` |
+| DELETE | `/api/auth/sessions/:id` | ✔ | Log out one other device → 204 |
 | GET    | `/api/tasks`        | ✔    | Your tasks. Query: `status=all\|open\|completed`, `category=Money` |
 | GET    | `/api/tasks/:id`    | ✔    | One of your tasks (404 otherwise) |
 | POST   | `/api/tasks`        | ✔    | `{ title, category, dueDate?, priority?, completed? }` |
@@ -171,8 +188,9 @@ else, update `SIGNUP_ALLOWED_EMAILS` (`fly secrets set` restarts the app). Later
 just `fly deploy`.
 
 **After deploying, run the smoke test** against the live site. It checks auth, cookies,
-user isolation, task create/edit/complete/delete, page refresh on app routes, and security
-headers. Invite two test emails first (they stay as test accounts):
+user isolation, task create/edit/complete/delete, account settings (profile, password,
+devices), page refresh on app routes, and security headers. It deletes both test accounts at
+the end. Invite two test emails first:
 
 ```bash
 fly secrets set SIGNUP_ALLOWED_EMAILS="you@example.com,smoke-a@example.com,smoke-b@example.com"
@@ -216,7 +234,7 @@ server/src/
   app.ts                      Express app: origin check, session middleware, routers
   config.ts                   Env-driven config (future API keys go here)
   db/                         connection (+ restore.db swap-in), forward-only migrations, backups, dev seed, reset
-  lib/                        errors, password hashing, cookie parsing
+  lib/                        errors, password hashing, cookie parsing, device names from User-Agent
   middleware/                 error handler, rate limiter, origin (CSRF) check, security headers, serve built app
   modules/auth/               users + sessions repos → AuthService → routes, middleware
   modules/tasks/              repository (user-scoped SQL) → service → routes (requireAuth)
@@ -227,6 +245,7 @@ client/src/
   components/ui/              generic: Modal, ConfirmDialog, Alert, FormField, EmptyState, Skeleton, …
   components/layout/          Layout (mobile drawer), Sidebar, AuthLayout, RouteGuards
   components/tasks/           TasksProvider (shared data + dialogs), TaskList/Item/Form, badges
+  components/account/         Account page parts: edit profile, change password, devices, delete account
   pages/                      Dashboard, Tasks, Account, Login, Signup, Inbox/Settings (coming soon), 404
   styles/global.css           Design tokens, components, light/dark themes, responsive rules
 ```

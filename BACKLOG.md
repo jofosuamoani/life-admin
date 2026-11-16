@@ -68,12 +68,14 @@ and the decision log ("Deployment prep").*
       tasks) and for auth. Highest priority: everything is verified manually with curl today.
 - [ ] Per-email login cap across all IPs (e.g. 20/hour) and/or a CAPTCHA after repeated
       failures, against attacks spread across many IPs (botnets). The current limits are per IP + email and per IP.
-- [ ] Re-enter password before sensitive actions (connecting Gmail, viewing documents,
-      deleting the account), once integrations exist.
+- [ ] Re-enter password before sensitive actions (connecting Gmail, viewing documents), once
+      integrations exist. *(Already done 2026-11-16 for changing email or password and for deleting
+      the account.)*
 - [ ] Two-factor authentication.
 - [ ] Check new passwords against breached-password lists (HIBP k-anonymity API).
 - [ ] Signup reveals whether an email is registered (409 response). Fine for now;
-      revisit with email verification (e.g. always say "check your email").
+      revisit with email verification (e.g. always say "check your email"). Changing your email
+      to one that's taken says so too, but only after the correct password, and it's rate-limited.
 - [ ] Rotate the session token when a session is extended (it currently keeps the same token).
 - [ ] scrypt uses ~128 MB per hash; many concurrent logins could spike memory. Consider
       a concurrency cap on hashing.
@@ -83,13 +85,24 @@ and the decision log ("Deployment prep").*
 
 ### 👤 Accounts
 
-- [ ] Password reset ("forgot password"), which needs email sending.
-- [ ] Change password, and **revoke other sessions** when it changes.
-- [ ] "Log out of all devices" / list of active sessions.
-- [ ] Edit name and email on the Account page (currently read-only).
-- [ ] Delete account (the database already cascades a user's tasks and sessions). Then also
-      let `npm run smoke` delete its two test accounts afterwards; today they stay in the
-      production database (with whatever tasks the last run left, which is none).
+- [ ] Password reset ("forgot password"). *(Skipped 2026-11-16: needs an email service, and
+      Resend can only email other people from a domain we own. Until then, a forgotten password
+      means the owner resets it in the database. Options when it's needed: email reset via Resend
+      plus a custom domain, or an owner-issued one-time reset link from a server command.)*
+- [x] Change password, and **revoke other sessions** when it changes. *(Done 2026-11-16: all
+      other devices are logged out, and this one gets a new session token.)*
+- [x] "Log out of all devices" / list of active sessions. *(Done 2026-11-16: Devices card with
+      browser/OS, last active, per-device and "all other devices" logout.)*
+- [x] Edit name and email on the Account page. *(Done 2026-11-16: email change needs the password.)*
+- [x] Delete account. *(Done 2026-11-16: password-confirmed. `npm run smoke` now deletes its two
+      test accounts at the end.)*
+- [ ] Verify a new email address before switching to it (send a confirmation link to the new
+      address). Needs email sending, like password reset. Today the change is immediate once the
+      password is confirmed.
+- [ ] Invite-only mode doesn't apply to email changes: an invited user can change their email to
+      one that isn't on the invite list. Harmless (they already have an account), but noted.
+- [ ] Undo window for account deletion (e.g. 7 days before data is really removed). Today it's
+      immediate; the nightly backups are the only way back.
 
 ### ✅ Tasks & dashboard
 
@@ -192,6 +205,22 @@ Notes to carry forward when building these:
 | **Backups:** nightly SQLite online-backup snapshot to `/data/backups` (keep 14; also taken at startup if the newest is over 24 h old, since an idle-stopped machine may miss the timer). Plus Fly volume snapshots (14 days). | No extra services. The online backup is consistent while the app runs, unlike copying the file. Both copies are with Fly, so off-site backups are in "Before a public launch". |
 | **Restore:** put a snapshot at `/data/restore.db` and restart. The server swaps it in before opening the database, and keeps the old one as `pre-restore-<time>.db`. | Fly machines can't be shelled into while stopped, so restoring through the app's own startup is the safe path. Tested end to end. |
 | VM memory 512 MB. | scrypt uses ~128 MB per hash, so 256 MB could run out of memory with two simultaneous logins. |
+
+### Milestone 3: Account settings (2026-11-16)
+
+| Decision | Why / trade-off |
+|---|---|
+| **Password reset skipped for now** (owner's choice). | Self-service reset needs an email service plus a domain we own; an owner-issued reset link was the other option. Invite-only use makes it rare. |
+| **Current password required** to change the email or password, or to delete the account. A name change needs none. | Standard protection if someone gets hold of an open, logged-in browser. A wrong password returns `400` on that field, not `401`, because the client treats `401` as "session ended" and would log the user out. |
+| **Failed re-entered passwords: 10 per account per 15 minutes** (counted per user, not per IP). | A stolen session can't be used to guess the password quickly. Per user, because the attacker would already be signed in, so their IP doesn't matter. |
+| **Changing the password ends every other session and rotates this one** (new token and cookie). | If the password changed because the account was compromised, no old session, including a stolen copy of this one, keeps working. The user stays logged in here. |
+| **Devices list** (owner's choice over a single "log out everywhere" button): browser and OS from the User-Agent, login time, last active. Per-device logout, and "all other devices" when there are 2 or more. | Lets people see where they're logged in. Only the User-Agent is stored, no IP addresses. "Last active" is written at most every 5 minutes, not on every request. |
+| Sessions are identified to the client by the first 16 hex characters of their stored hash, always scoped to the user. | The client never sees the full database key. A hash prefix can't be turned back into a token. No migration was needed for a separate id column. |
+| Sessions from before this update (no browser recorded) get their browser filled in on their next request, and it's never overwritten after that. | Otherwise every existing login, including on the live site, would show as "Unknown device" until it logged in again. Tested on a copy of the pre-update dev database. |
+| The current device can't be logged out from the devices list. | The Log out card does that, and it also clears the app state. Avoids two different ways to log out of this device. |
+| **Account deletion is immediate** and cascades to tasks and sessions. Afterwards the login page says the account was deleted. | Simple and honest. The nightly backups are the only way back; an undo window is in the backlog. |
+| Changing the email is immediate once the password is confirmed (no confirmation link). | Verification needs email sending (see backlog). The new email is normalised the same way as at signup. |
+| The 401 handler now covers the new `/api/auth/*` account endpoints. Only login, signup, logout and the session check (`GET /me`) handle 401 themselves. | Before, every `/auth/` path was excluded, so an expired session during a profile edit would have shown an error instead of logging the user out. |
 
 ### Milestone 2.5: MVP polish (2026-11-04)
 

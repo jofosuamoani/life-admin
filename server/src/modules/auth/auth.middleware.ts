@@ -33,7 +33,7 @@ export function sessionMiddleware(auth: AuthService): RequestHandler {
     const token = parseCookies(req.headers.cookie)[config.session.cookieName];
     if (!token) return next();
 
-    const result = auth.authenticate(token);
+    const result = auth.authenticate(token, req.get('user-agent') ?? '');
     if (!result) {
       // Expired or revoked: drop the stale cookie.
       clearSessionCookie(res);

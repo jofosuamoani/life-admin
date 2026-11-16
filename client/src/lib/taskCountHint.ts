@@ -28,3 +28,12 @@ export function writeTaskCountHint(userId: number, hasTasks: boolean): void {
     // Storage unavailable: the hint is only a nicety.
   }
 }
+
+/** Removes the hint, e.g. when the account is deleted. */
+export function forgetTaskCountHint(userId: number): void {
+  try {
+    localStorage.removeItem(key(userId));
+  } catch {
+    // Storage unavailable: nothing to remove.
+  }
+}

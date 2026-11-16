@@ -60,4 +60,20 @@ export class UserRepository {
       .prepare('UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?')
       .run(passwordHash, new Date().toISOString(), id);
   }
+
+  /** Updates the given fields. Throws on a duplicate email (UNIQUE constraint). */
+  updateProfile(id: number, changes: { name?: string; email?: string }): UserRecord {
+    this.db
+      .prepare(
+        `UPDATE users SET name = COALESCE(:name, name), email = COALESCE(:email, email), updated_at = :now
+         WHERE id = :id`,
+      )
+      .run({ id, name: changes.name ?? null, email: changes.email ?? null, now: new Date().toISOString() });
+    return this.findById(id)!;
+  }
+
+  /** Deletes the user. Their tasks and sessions go with them (ON DELETE CASCADE). */
+  delete(id: number): void {
+    this.db.prepare('DELETE FROM users WHERE id = ?').run(id);
+  }
 }

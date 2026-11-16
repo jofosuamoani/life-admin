@@ -17,7 +17,7 @@ function FullPageLoader() {
  * Where they return to after logging in:
  * - Sent here involuntarily (expired session, bookmark, deep link):
  *   remember the current page so they come back to it.
- * - Deliberately logged out: start fresh on the dashboard.
+ * - Deliberately logged out (or deleted their account): start fresh on the dashboard.
  */
 export function RequireAuth() {
   const { status, signedOutBy } = useAuth();
@@ -26,7 +26,7 @@ export function RequireAuth() {
   if (status === 'loading') return <FullPageLoader />;
   if (status === 'unauthenticated') {
     const state: LoginRedirectState | undefined =
-      signedOutBy === 'logout' ? undefined : { from: location.pathname + location.search + location.hash };
+      signedOutBy === 'logout' || signedOutBy === 'account-deleted' ? undefined : { from: location.pathname + location.search + location.hash };
     return <Navigate to="/login" replace state={state} />;
   }
   return <Outlet />;

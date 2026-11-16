@@ -1,7 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import type { LoginInput, PublicUser, SignupInput } from '@life-admin/shared';
+import type { DeleteAccountInput, LoginInput, PublicUser, SignupInput } from '@life-admin/shared';
 import { authApi } from '../api/auth';
 import { NETWORK_ERROR_MESSAGE, setUnauthorizedHandler } from '../api/http';
+import { forgetTaskCountHint } from './taskCountHint';
 import { useOnReturn } from './useOnReturn';
 
 type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated';
@@ -11,10 +12,11 @@ type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated';
  * - 'logout': they clicked Logout → start fresh on the dashboard.
  * - 'session-ended': the server rejected their session mid-use (expired or
  *   revoked) → return them to the page they were on.
+ * - 'account-deleted': they deleted their account → like 'logout'.
  * - null: never signed in during this visit (e.g. opened a bookmark) → return
  *   them to the page they asked for.
  */
-export type SignedOutBy = 'logout' | 'session-ended' | null;
+export type SignedOutBy = 'logout' | 'session-ended' | 'account-deleted' | null;
 
 interface AuthContextValue {
   status: AuthStatus;
@@ -25,6 +27,10 @@ interface AuthContextValue {
   login: (input: LoginInput) => Promise<void>;
   signup: (input: SignupInput) => Promise<void>;
   logout: () => Promise<void>;
+  /** Replaces the signed-in user's details after a profile change. */
+  updateUser: (user: PublicUser) => void;
+  /** Deletes the account (the server checks the password), then signs out. */
+  deleteAccount: (input: DeleteAccountInput) => Promise<void>;
   retry: () => void;
   /**
    * Resets signedOutBy once the login page has shown its notice, so a later
@@ -128,11 +134,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const updateUser = useCallback((u: PublicUser) => setUser(u), []);
+
+  const deleteAccount = useCallback(async (input: DeleteAccountInput) => {
+    const deletedId = user?.id;
+    await authApi.deleteAccount(input);
+    if (deletedId !== undefined) forgetTaskCountHint(deletedId);
+    setUser(null);
+    setStatus('unauthenticated');
+    setSignedOutBy('account-deleted');
+  }, [user?.id]);
+
   const clearSignedOutBy = useCallback(() => setSignedOutBy(null), []);
 
   const value = useMemo(
-    () => ({ status, user, signedOutBy, error, login, signup, logout, retry: checkSession, clearSignedOutBy }),
-    [status, user, signedOutBy, error, login, signup, logout, checkSession, clearSignedOutBy],
+    () => ({
+      status,
+      user,
+      signedOutBy,
+      error,
+      login,
+      signup,
+      logout,
+      updateUser,
+      deleteAccount,
+      retry: checkSession,
+      clearSignedOutBy,
+    }),
+    [status, user, signedOutBy, error, login, signup, logout, updateUser, deleteAccount, checkSession, clearSignedOutBy],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

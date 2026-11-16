@@ -49,6 +49,8 @@ const BASE_URL = import.meta.env?.VITE_API_BASE_URL ?? '/api';
 
 let onUnauthorized: (() => void) | null = null;
 
+const SESSION_FLOW_PATHS = ['/auth/login', '/auth/signup', '/auth/logout'];
+
 /** Called when a non-auth request gets 401 (e.g. the session expired). */
 export function setUnauthorizedHandler(handler: (() => void) | null): void {
   onUnauthorized = handler;
@@ -67,7 +69,11 @@ export async function request<T>(path: string, init: RequestInit = {}): Promise<
     throw new ApiError(0, NETWORK_ERROR_MESSAGE);
   }
 
-  if (res.status === 401 && !path.startsWith('/auth/')) onUnauthorized?.();
+  // A 401 means the session ended, except on the requests that establish or
+  // check a session (where 401 is an ordinary answer the caller handles).
+  const checksSession =
+    SESSION_FLOW_PATHS.includes(path) || (path === '/auth/me' && (init.method ?? 'GET') === 'GET');
+  if (res.status === 401 && !checksSession) onUnauthorized?.();
 
   if (res.status === 204) return undefined as T;
 

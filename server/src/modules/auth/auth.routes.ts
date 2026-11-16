@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, type Request } from 'express';
 import { clientIp, rateLimit } from '../../middleware/rateLimit';
 import type { AuthService } from './auth.service';
 import { clearSessionCookie, currentUser, requireAuth, setSessionCookie } from './auth.middleware';
@@ -9,6 +9,14 @@ import { clearSessionCookie, currentUser, requireAuth, setSessionCookie } from '
  *   POST /api/auth/login    { email, password }       → 200 user (sets session cookie)
  *   POST /api/auth/logout                             → 204 (clears cookie, revokes session)
  *   GET  /api/auth/me                                 → 200 user | 401
+ *
+ * Account (signed in):
+ *   PATCH  /api/auth/me        { name?, email?, currentPassword? } → 200 user
+ *   DELETE /api/auth/me        { password }                        → 204 (account and its data deleted)
+ *   PUT    /api/auth/password  { currentPassword, newPassword }    → 200 { otherSessionsEnded } (new cookie)
+ *   GET    /api/auth/sessions                                      → 200 SessionInfo[]
+ *   DELETE /api/auth/sessions                                      → 200 { ended } (all other devices)
+ *   DELETE /api/auth/sessions/:id                                  → 204 (one other device)
  */
 export function createAuthRouter(auth: AuthService): Router {
   const router = Router();
@@ -47,8 +55,19 @@ export function createAuthRouter(auth: AuthService): Router {
     message: 'Too many sign-up attempts.',
   });
 
+  // Actions that re-check the password while signed in: 10 failures per account
+  // per 15 minutes, so a stolen session can't be used to guess the password.
+  const reauthLimiter = rateLimit({
+    windowMs: LOGIN_WINDOW_MS,
+    max: 10,
+    skipSuccessfulRequests: true,
+    message: 'Too many incorrect password attempts.',
+    keyGenerator: (req) => `user:${req.user?.id}`,
+  });
+  const userAgent = (req: Request) => req.get('user-agent') ?? '';
+
   router.post('/signup', signupLimiter, async (req, res) => {
-    const { user, session } = await auth.signup(req.body);
+    const { user, session } = await auth.signup(req.body, userAgent(req));
     // Replace any session the browser already had.
     auth.logout(req.sessionId);
     setSessionCookie(res, session);
@@ -56,7 +75,7 @@ export function createAuthRouter(auth: AuthService): Router {
   });
 
   router.post('/login', loginIpLimiter, loginAccountLimiter, async (req, res) => {
-    const { user, session } = await auth.login(req.body);
+    const { user, session } = await auth.login(req.body, userAgent(req));
     auth.logout(req.sessionId);
     setSessionCookie(res, session);
     res.json(user);
@@ -70,6 +89,40 @@ export function createAuthRouter(auth: AuthService): Router {
 
   router.get('/me', requireAuth, (req, res) => {
     res.json(currentUser(req));
+  });
+
+  router.patch('/me', requireAuth, reauthLimiter, async (req, res) => {
+    res.json(await auth.updateProfile(currentUser(req).id, req.body));
+  });
+
+  router.delete('/me', requireAuth, reauthLimiter, async (req, res) => {
+    await auth.deleteAccount(currentUser(req).id, req.body);
+    clearSessionCookie(res);
+    res.status(204).end();
+  });
+
+  router.put('/password', requireAuth, reauthLimiter, async (req, res) => {
+    const { session, otherSessionsEnded } = await auth.changePassword(
+      currentUser(req).id,
+      req.sessionId,
+      req.body,
+      userAgent(req),
+    );
+    setSessionCookie(res, session);
+    res.json({ otherSessionsEnded });
+  });
+
+  router.get('/sessions', requireAuth, (req, res) => {
+    res.json(auth.listSessions(currentUser(req).id, req.sessionId));
+  });
+
+  router.delete('/sessions', requireAuth, (req, res) => {
+    res.json({ ended: auth.revokeOtherSessions(currentUser(req).id, req.sessionId) });
+  });
+
+  router.delete('/sessions/:id', requireAuth, (req, res) => {
+    auth.revokeSession(currentUser(req).id, req.sessionId, String(req.params.id));
+    res.status(204).end();
   });
 
   return router;

@@ -92,6 +92,15 @@ export const LogoutIcon = (p: IconProps) => (
   </Base>
 );
 
+export const SortIcon = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M7 4v16" />
+    <path d="M3 8l4-4 4 4" />
+    <path d="M17 20V4" />
+    <path d="M13 16l4 4 4-4" />
+  </Base>
+);
+
 export const SearchIcon = (p: IconProps) => (
   <Base {...p}>
     <circle cx="11" cy="11" r="7" />

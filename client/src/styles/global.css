@@ -855,6 +855,22 @@ button:disabled {
 .input.filter-select {
   width: 170px;
 }
+/* Sort dropdown with a leading icon; sizes to its longest option. */
+.select-field {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.select-field svg {
+  position: absolute;
+  left: 10px;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+.input.sort-select {
+  width: auto;
+  padding-left: 31px;
+}
 
 /* ---------- Forms ---------- */
 
@@ -1789,10 +1805,14 @@ select.input {
   .tab {
     justify-content: center;
   }
-  /* Search takes the spare width; category stays compact beside it. */
-  .toolbar-filters {
-    display: grid;
-    grid-template-columns: 1fr auto;
+  /* Search gets its own row; category and sort share the next one, each growing
+     to fill it but never narrower than its longest option (wrapping if needed). */
+  .toolbar-filters .search-field {
+    flex: 1 0 100%;
+  }
+  .toolbar-filters > .input.filter-select,
+  .toolbar-filters > .select-field {
+    flex: 1 0 auto;
   }
   .search-field .input {
     width: 100%;
@@ -1801,6 +1821,9 @@ select.input {
      add their own arrow and padding, so a fixed width can clip the label. */
   .input.filter-select {
     width: auto;
+  }
+  .input.sort-select {
+    width: 100%;
   }
   .form-row {
     grid-template-columns: 1fr;

@@ -7,7 +7,8 @@ import Alert from '../components/ui/Alert';
 import EmptyState from '../components/ui/EmptyState';
 import PageHeader from '../components/ui/PageHeader';
 import { TaskListSkeleton } from '../components/ui/Skeleton';
-import { CheckCircleIcon, PlusIcon, SearchIcon, SparkleIcon, TasksIcon } from '../components/ui/Icons';
+import { CheckCircleIcon, PlusIcon, SearchIcon, SortIcon, SparkleIcon, TasksIcon } from '../components/ui/Icons';
+import { TASK_SORTS, isTaskSort, sortTasks, type TaskSort } from '../lib/tasks';
 import { useDocumentTitle } from '../lib/useDocumentTitle';
 
 type StatusFilter = 'all' | 'open' | 'completed';
@@ -36,6 +37,8 @@ export default function TasksPage() {
   const status: StatusFilter = isStatus(rawStatus) ? rawStatus : 'open';
   const category: TaskCategory | 'all' = isCategory(rawCategory) ? rawCategory : 'all';
   const query = params.get('q') ?? '';
+  const rawSort = params.get('sort');
+  const sort: TaskSort = isTaskSort(rawSort) ? rawSort : 'due';
 
   function updateParam(key: string, value: string | null) {
     setParams(
@@ -68,8 +71,12 @@ export default function TasksPage() {
   );
 
   const visible = useMemo(
-    () => matching.filter((t) => status === 'all' || (status === 'open' ? !t.completed : t.completed)),
-    [matching, status],
+    () =>
+      sortTasks(
+        matching.filter((t) => status === 'all' || (status === 'open' ? !t.completed : t.completed)),
+        sort,
+      ),
+    [matching, status, sort],
   );
 
   const filtersActive = category !== 'all' || query.trim() !== '';
@@ -189,6 +196,21 @@ export default function TasksPage() {
                 <option key={c}>{c}</option>
               ))}
             </select>
+            <label className="select-field">
+              <SortIcon width={15} height={15} />
+              <span className="visually-hidden">Sort tasks</span>
+              <select
+                className="input sort-select"
+                value={sort}
+                onChange={(e) => updateParam('sort', e.target.value === 'due' ? null : e.target.value)}
+              >
+                {TASK_SORTS.map((s) => (
+                  <option key={s.value} value={s.value}>
+                    {s.label}
+                  </option>
+                ))}
+              </select>
+            </label>
           </div>
         </div>
 

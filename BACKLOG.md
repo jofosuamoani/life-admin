@@ -116,7 +116,13 @@ and the decision log ("Deployment prep").*
       with planned features, marked "Soon" in the sidebar.)*
 - [ ] Undo for delete (currently a confirmation dialog; completing a task already has Undo).
 - [ ] Warn before closing the task dialog with unsaved changes.
-- [ ] Search and filtering run in the browser over all tasks; move them to the API (with
+- [x] **Sort the task list.** *(Done 2026-11-19: Due date, Priority, Newest, Oldest, Title. See
+      decision log.)*
+- [ ] Remember the chosen sort between visits (today it lives only in the URL, so the sidebar
+      link resets it to Due date). Could be a per-user setting once Settings exists.
+- [ ] "Recently completed" sort for the Completed tab needs a `completed_at` column
+      (`updatedAt` changes on any edit, so it isn't a reliable stand-in).
+- [ ] Search, filtering and sorting run in the browser over all tasks; move them to the API (with
       pagination) if task lists get large.
 
 ### 🎨 UX polish
@@ -205,6 +211,16 @@ Notes to carry forward when building these:
 | **Backups:** nightly SQLite online-backup snapshot to `/data/backups` (keep 14; also taken at startup if the newest is over 24 h old, since an idle-stopped machine may miss the timer). Plus Fly volume snapshots (14 days). | No extra services. The online backup is consistent while the app runs, unlike copying the file. Both copies are with Fly, so off-site backups are in "Before a public launch". |
 | **Restore:** put a snapshot at `/data/restore.db` and restart. The server swaps it in before opening the database, and keeps the old one as `pre-restore-<time>.db`. | Fly machines can't be shelled into while stopped, so restoring through the app's own startup is the safe path. Tested end to end. |
 | VM memory 512 MB. | scrypt uses ~128 MB per hash, so 256 MB could run out of memory with two simultaneous logins. |
+
+### Task sorting (2026-11-19)
+
+| Decision | Why / trade-off |
+|---|---|
+| **Sort dropdown on the Tasks page**: Due date (default), Priority, Newest, Oldest, Title. Kept in the URL (`?sort=`) like the other filters; the default is left out of the URL, and an unknown value falls back to it. "Clear filters" keeps the sort. | Survives refresh and works in shared links. Sorting is ordering, not filtering, so clearing filters shouldn't reset it. |
+| Open tasks always come before completed ones, whatever the sort. Ties fall back to a second key (Due date → priority, Priority → due date, Title → due date), then id. | Keeps the "All" tab readable and the order stable. Tasks with no due date go last in date sorts. |
+| Title sort ignores case and orders numbers naturally ("Task 9" before "Task 10"). | Matches what people expect; plain string comparison puts lowercase after uppercase and "10" before "9". |
+| Sorting happens in the browser; the API and the dashboard are unchanged (still due-date order). | Every task is already loaded client-side, so no server change was needed. See the backlog item on moving search, filtering and sorting to the API if lists get large. |
+| Short labels ("Newest", not "Newest first") with a sort icon in the dropdown. On phones, category and sort share a row below the search, each at least as wide as its longest option, and wrap below ~340px instead of clipping. | The longer labels didn't fit beside "All categories" on a 375px screen. Avoids repeating the iPhone clipping bug that hit the category filter. |
 
 ### Milestone 3: Account settings (2026-11-16)
 

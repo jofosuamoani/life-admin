@@ -116,8 +116,8 @@ and the decision log ("Deployment prep").*
       with planned features, marked "Soon" in the sidebar.)*
 - [ ] Undo for delete (currently a confirmation dialog; completing a task already has Undo).
 - [ ] Warn before closing the task dialog with unsaved changes.
-- [x] **Sort the task list.** *(Done 2026-11-19: Due date, Priority, Newest, Oldest, Title. See
-      decision log.)*
+- [x] **Sort the task list.** *(Done 2026-11-19: Due date, Priority, Date added, Title, each
+      with a button to reverse the order. See decision log.)*
 - [ ] Remember the chosen sort between visits (today it lives only in the URL, so the sidebar
       link resets it to Due date). Could be a per-user setting once Settings exists.
 - [ ] "Recently completed" sort for the Completed tab needs a `completed_at` column
@@ -216,11 +216,12 @@ Notes to carry forward when building these:
 
 | Decision | Why / trade-off |
 |---|---|
-| **Sort dropdown on the Tasks page**: Due date (default), Priority, Newest, Oldest, Title. Kept in the URL (`?sort=`) like the other filters; the default is left out of the URL, and an unknown value falls back to it. "Clear filters" keeps the sort. | Survives refresh and works in shared links. Sorting is ordering, not filtering, so clearing filters shouldn't reset it. |
-| Open tasks always come before completed ones, whatever the sort. Ties fall back to a second key (Due date → priority, Priority → due date, Title → due date), then id. | Keeps the "All" tab readable and the order stable. Tasks with no due date go last in date sorts. |
+| **Sort dropdown on the Tasks page**: Due date (default), Priority, Date added, Title. Kept in the URL (`?sort=`) like the other filters; the default is left out of the URL, and an unknown value falls back to it. "Clear filters" keeps the sort and direction. | Survives refresh and works in shared links. Sorting is ordering, not filtering, so clearing filters shouldn't reset it. |
+| **Direction button** joined to the dropdown reverses the order (`?dir=reverse`). Each sort starts in its natural direction: soonest due, highest priority, newest, A to Z. Picking a different sort resets the direction. The button's icon shows ascending/descending and its label and tooltip say the order in words ("Latest first"). | Owner asked for reversible sorts (2026-11-19). A separate button rather than "pick the same option again to flip it", which a dropdown can't detect reliably (especially on phones). With a direction button, Newest and Oldest became one "Date added" option; old `?sort=newest` / `?sort=oldest` links still work. |
+| Open tasks always come before completed ones, whatever the sort or direction. Reversing flips only the main key: tasks with no due date stay last, and tie-breakers keep their natural order (Due date → priority, Priority → soonest due, Title → soonest due), then id. | Keeps the "All" tab readable and the order stable. "Latest first" showing undated tasks at the top would bury the ones with real dates. |
 | Title sort ignores case and orders numbers naturally ("Task 9" before "Task 10"). | Matches what people expect; plain string comparison puts lowercase after uppercase and "10" before "9". |
 | Sorting happens in the browser; the API and the dashboard are unchanged (still due-date order). | Every task is already loaded client-side, so no server change was needed. See the backlog item on moving search, filtering and sorting to the API if lists get large. |
-| Short labels ("Newest", not "Newest first") with a sort icon in the dropdown. On phones, category and sort share a row below the search, each at least as wide as its longest option, and wrap below ~340px instead of clipping. | The longer labels didn't fit beside "All categories" on a 375px screen. Avoids repeating the iPhone clipping bug that hit the category filter. |
+| On phones, category and sort share a row below the search on wider phones (about 410px and up, e.g. 430px), and each gets its own full-width row on narrower ones (375px, 320px). Each control is always at least as wide as its longest option. | Both together need ~340px of toolbar width. Wrapping beats clipping (the iPhone bug that hit the category filter). Fitting one row at 375px would need custom-styled dropdowns (`appearance: none` + our own arrow) everywhere, which would also make widths predictable on iOS. Not worth it for this change. |
 
 ### Milestone 3: Account settings (2026-11-16)
 

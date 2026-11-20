@@ -92,12 +92,25 @@ export const LogoutIcon = (p: IconProps) => (
   </Base>
 );
 
-export const SortIcon = (p: IconProps) => (
+/** Ascending: an arrow pointing up beside bars that grow downward. */
+export const SortAscIcon = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M7 20V4" />
+    <path d="M3 8l4-4 4 4" />
+    <path d="M14 6h3" />
+    <path d="M14 12h5" />
+    <path d="M14 18h7" />
+  </Base>
+);
+
+/** Descending: an arrow pointing down beside bars that shrink downward. */
+export const SortDescIcon = (p: IconProps) => (
   <Base {...p}>
     <path d="M7 4v16" />
-    <path d="M3 8l4-4 4 4" />
-    <path d="M17 20V4" />
-    <path d="M13 16l4 4 4-4" />
+    <path d="M3 16l4 4 4-4" />
+    <path d="M14 6h7" />
+    <path d="M14 12h5" />
+    <path d="M14 18h3" />
   </Base>
 );
 

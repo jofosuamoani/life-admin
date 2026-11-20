@@ -855,21 +855,42 @@ button:disabled {
 .input.filter-select {
   width: 170px;
 }
-/* Sort dropdown with a leading icon; sizes to its longest option. */
-.select-field {
-  position: relative;
+/* Sort dropdown joined to a direction button on its right; sizes to its longest option. */
+.sort-control {
   display: flex;
-  align-items: center;
 }
-.select-field svg {
-  position: absolute;
-  left: 10px;
-  color: var(--text-muted);
-  pointer-events: none;
+.sort-label {
+  display: flex;
+  flex: 1;
 }
 .input.sort-select {
   width: auto;
-  padding-left: 31px;
+  flex: 1;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.sort-direction {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  margin-left: -1px;
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: var(--surface);
+  color: var(--text-muted);
+  transition: background 0.15s, color 0.15s;
+}
+.sort-direction:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+.input.sort-select:focus,
+.sort-direction:focus-visible {
+  position: relative;
+  z-index: 1;
 }
 
 /* ---------- Forms ---------- */
@@ -1811,7 +1832,7 @@ select.input {
     flex: 1 0 100%;
   }
   .toolbar-filters > .input.filter-select,
-  .toolbar-filters > .select-field {
+  .toolbar-filters > .sort-control {
     flex: 1 0 auto;
   }
   .search-field .input {
@@ -1821,9 +1842,6 @@ select.input {
      add their own arrow and padding, so a fixed width can clip the label. */
   .input.filter-select {
     width: auto;
-  }
-  .input.sort-select {
-    width: 100%;
   }
   .form-row {
     grid-template-columns: 1fr;

@@ -7,7 +7,7 @@ import Alert from '../components/ui/Alert';
 import EmptyState from '../components/ui/EmptyState';
 import PageHeader from '../components/ui/PageHeader';
 import { TaskListSkeleton } from '../components/ui/Skeleton';
-import { CheckCircleIcon, PlusIcon, SearchIcon, SortIcon, SparkleIcon, TasksIcon } from '../components/ui/Icons';
+import { CheckCircleIcon, PlusIcon, SearchIcon, SortAscIcon, SortDescIcon, SparkleIcon, TasksIcon } from '../components/ui/Icons';
 import { TASK_SORTS, isTaskSort, sortTasks, type TaskSort } from '../lib/tasks';
 import { useDocumentTitle } from '../lib/useDocumentTitle';
 
@@ -38,19 +38,27 @@ export default function TasksPage() {
   const category: TaskCategory | 'all' = isCategory(rawCategory) ? rawCategory : 'all';
   const query = params.get('q') ?? '';
   const rawSort = params.get('sort');
-  const sort: TaskSort = isTaskSort(rawSort) ? rawSort : 'due';
+  // `newest` / `oldest` were separate sorts briefly; keep those links working.
+  const sort: TaskSort = isTaskSort(rawSort) ? rawSort : rawSort === 'newest' || rawSort === 'oldest' ? 'added' : 'due';
+  const reversed = params.get('dir') === 'reverse' || rawSort === 'oldest';
+  const sortInfo = TASK_SORTS.find((s) => s.value === sort)!;
+  const directionLabel = sortInfo.directions[reversed ? 1 : 0];
+  const showsAscending = sortInfo.ascending !== reversed;
 
-  function updateParam(key: string, value: string | null) {
+  function updateParams(changes: Record<string, string | null>) {
     setParams(
       (prev) => {
         const next = new URLSearchParams(prev);
-        if (value === null || value === '') next.delete(key);
-        else next.set(key, value);
+        for (const [key, value] of Object.entries(changes)) {
+          if (value === null || value === '') next.delete(key);
+          else next.set(key, value);
+        }
         return next;
       },
       { replace: true },
     );
   }
+  const updateParam = (key: string, value: string | null) => updateParams({ [key]: value });
 
   // Counts reflect the category and search filters, so each tab shows
   // how many tasks you'd see if you clicked it.
@@ -75,8 +83,9 @@ export default function TasksPage() {
       sortTasks(
         matching.filter((t) => status === 'all' || (status === 'open' ? !t.completed : t.completed)),
         sort,
+        reversed,
       ),
-    [matching, status, sort],
+    [matching, status, sort, reversed],
   );
 
   const filtersActive = category !== 'all' || query.trim() !== '';
@@ -196,21 +205,32 @@ export default function TasksPage() {
                 <option key={c}>{c}</option>
               ))}
             </select>
-            <label className="select-field">
-              <SortIcon width={15} height={15} />
-              <span className="visually-hidden">Sort tasks</span>
-              <select
-                className="input sort-select"
-                value={sort}
-                onChange={(e) => updateParam('sort', e.target.value === 'due' ? null : e.target.value)}
+            <div className="sort-control">
+              <label className="sort-label">
+                <span className="visually-hidden">Sort tasks by</span>
+                <select
+                  className="input sort-select"
+                  value={sort}
+                  // A new sort starts in its natural direction (e.g. Priority → highest first).
+                  onChange={(e) => updateParams({ sort: e.target.value === 'due' ? null : e.target.value, dir: null })}
+                >
+                  {TASK_SORTS.map((s) => (
+                    <option key={s.value} value={s.value}>
+                      {s.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <button
+                type="button"
+                className="sort-direction"
+                onClick={() => updateParams({ dir: reversed ? null : 'reverse', ...(rawSort === 'oldest' || rawSort === 'newest' ? { sort: 'added' } : {}) })}
+                aria-label={`${directionLabel}. Reverse order`}
+                title={`${directionLabel} (click to reverse)`}
               >
-                {TASK_SORTS.map((s) => (
-                  <option key={s.value} value={s.value}>
-                    {s.label}
-                  </option>
-                ))}
-              </select>
-            </label>
+                {showsAscending ? <SortAscIcon width={16} height={16} /> : <SortDescIcon width={16} height={16} />}
+              </button>
+            </div>
           </div>
         </div>
 
